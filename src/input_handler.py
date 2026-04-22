@@ -1,9 +1,11 @@
+import time
 import uasyncio
 from machine import Pin
 
 from config import (
     PIN_BTN_MORSE,
     PIN_BTN_CTRL,
+    DEBOUNCE_MS,
 )
 
 
@@ -26,7 +28,33 @@ class ButtonMatrix:
         uasyncio.create_task(self._poll_ctrl())
 
     async def _poll_morse(self):
-        pass
+        last_state = self._pin_morse.value()
+        while True:
+            current_state = self._pin_morse.value()
+            if current_state != last_state:
+                await uasyncio.sleep_ms(DEBOUNCE_MS)
+                current_state = self._pin_morse.value()
+
+                if current_state != last_state:
+                    last_state = current_state
+                    evt = Evt.PRESS if current_state == 0 else Evt.RELEASE
+                    now = time.ticks_ms()
+                    self._queue.put_nowait((evt, now))
+
+            await uasyncio.sleep_ms(10)
 
     async def _poll_ctrl(self):
-        pass
+        last_state = self._pin_ctrl.value()
+        while True:
+            current_state = self._pin_ctrl.value()
+            if current_state != last_state:
+                await uasyncio.sleep_ms(DEBOUNCE_MS)
+                current_state = self._pin_ctrl.value()
+
+                if current_state != last_state:
+                    last_state = current_state
+                    if current_state == 0:
+                        now = time.ticks_ms()
+                        self._queue.put_nowait((Evt.CTRL, now))
+
+            await uasyncio.sleep_ms(10)
