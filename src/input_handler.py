@@ -14,7 +14,6 @@ class Evt:
     RELEASE = 1
     CTRL = 2
     CHAR_TIMEOUT = 3
-    BACKSPACE = 4
 
 
 class ButtonMatrix:
