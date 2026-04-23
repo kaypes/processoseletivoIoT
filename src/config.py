@@ -17,3 +17,11 @@ COLOR_OFF = (0, 0, 0)
 COLOR_DOT = (0, 0, 255)
 COLOR_DASH = (255, 165, 0)
 COLOR_DONE = (0, 255, 0)
+
+STATE_LABELS = {
+    0: "IDLE",
+    1: "LISTEN",
+    2: "PRESS",
+    3: "DECODE",
+    4: "OK",
+}

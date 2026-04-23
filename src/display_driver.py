@@ -7,8 +7,14 @@ from config import PIN_OLED_SDA, PIN_OLED_SCL, STATE_LABELS
 _OLED_W = const(128)
 _OLED_H = const(64)
 _OLED_ADDR = const(0x3C)
+_LINE_H = const(8)
 
 _Y_STATE = const(0)
+_Y_SEQ = const(16)
+_Y_MSG_LABEL = const(32)
+_Y_MSG_TEXT = const(46)
+
+_MSG_VISIBLE = const(16)
 
 
 class DisplayDriver:
@@ -32,4 +38,21 @@ class DisplayDriver:
             return None
 
     def render(self, state, sequence, message):
-        pass
+        if not self._oled:
+            return
+
+        oled = self._oled
+        oled.fill(0)
+
+        state_label = STATE_LABELS.get(state, "?")
+        oled.text(f"Status: {state_label}", 0, _Y_STATE)
+        oled.hline(0, _Y_STATE + _LINE_H + 2, _OLED_W, 1)
+
+        seq_str = "".join(sequence) if sequence else ""
+        oled.text(seq_str, 0, _Y_SEQ)
+
+        oled.text("Mensagem:", 0, _Y_MSG_LABEL)
+        visible_msg = message[-_MSG_VISIBLE:] if message else ""
+        oled.text(visible_msg, 0, _Y_MSG_TEXT)
+
+        oled.show()
