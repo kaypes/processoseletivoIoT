@@ -1,6 +1,7 @@
 import time
+import uasyncio
 
-from config import DOT_MAX_MS
+from config import DOT_MAX_MS, CHAR_TIMEOUT_MS
 from morse_dict import decode_sequence
 from input_handler import Evt
 from micropython import const
@@ -115,6 +116,23 @@ class FSM:
             self._fb.clear_visuals()
 
         await self._enter_listening()
+
+    def _start_watchdog(self) -> None:
+        self._cancel_watchdog()
+        self._watchdog = uasyncio.create_task(self._watchdog_coro())
+
+    def _cancel_watchdog(self) -> None:
+        if self._watchdog:
+            self._watchdog.cancel()
+            self._watchdog = None
+
+    async def _watchdog_coro(self):
+        await uasyncio.sleep_ms(CHAR_TIMEOUT_MS)
+        
+        try:
+            self._queue.put_nowait((Evt.CHAR_TIMEOUT, 0))
+        except Exception:
+            pass
 
     def _reset_session(self) -> None:
         self._sequence.clear()
