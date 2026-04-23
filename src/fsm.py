@@ -1,5 +1,11 @@
+import time
+
+from config import DOT_MAX_MS
+from morse_dict import decode_sequence
 from input_handler import Evt
 from micropython import const
+
+_MSG_MAX_CHARS = const(32)
 
 
 class State:
@@ -66,6 +72,49 @@ class FSM:
         self._state = State.PRESSING
         self._press_ts = ts
         self._fb.set_tone(True)
+
+    async def _process_release(self, ts: int):
+        duration = time.ticks_diff(ts, self._press_ts)
+        is_dash = duration >= DOT_MAX_MS
+
+        self._fb.set_tone(False)
+        self._sequence.append("-" if is_dash else ".")
+        self._fb.add_visual_pulse(is_dash)
+
+        await self._enter_listening()
+
+    async def _enter_decoding(self):
+        self._state = State.DECODING
+        
+        seq_str = "".join(self._sequence)
+        self._sequence.clear()
+
+        if len(seq_str) >= 6 and seq_str.count(".") == len(seq_str):
+            if self._message:
+                self._message.pop()
+            
+            self._notify_display()
+            await self._enter_feedback(success=True)
+            
+            return
+
+        char = decode_sequence(seq_str) if seq_str else None
+
+        if char and len(self._message) < _MSG_MAX_CHARS:
+            if char != "?":
+                self._message.append(char)
+
+        self._notify_display()
+        await self._enter_feedback(success=(char and char != "?"))
+
+    async def _enter_feedback(self, success):
+        self._state = State.FEEDBACK
+        if success:
+            await self._fb.blink_success()
+        else:
+            self._fb.clear_visuals()
+
+        await self._enter_listening()
 
     def _reset_session(self) -> None:
         self._sequence.clear()
