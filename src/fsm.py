@@ -1,3 +1,4 @@
+from input_handler import Evt
 from micropython import const
 
 
@@ -26,3 +27,55 @@ class FSM:
         while True:
             evt_type, ts = await self._queue.get()
             await self._dispatch(evt_type, ts)
+
+    async def _dispatch(self, evt_type, ts):
+        if self._state == State.IDLE and evt_type == Evt.CTRL:
+            self._reset_session()
+            self._fb.clear_visuals()
+            
+            await self._enter_listening()
+
+        elif self._state == State.LISTENING and evt_type == Evt.PRESS:
+            self._cancel_watchdog()
+            self._enter_pressing(ts)
+
+        elif self._state == State.LISTENING and evt_type == Evt.CHAR_TIMEOUT:
+            if len(self._sequence) > 0:
+                await self._enter_decoding()
+
+        elif self._state == State.LISTENING and evt_type == Evt.CTRL:
+            self._cancel_watchdog()
+            self._reset_session()
+            self._fb.clear_visuals()
+            self._enter_idle()
+
+        elif self._state == State.PRESSING and evt_type == Evt.RELEASE:
+            await self._process_release(ts)
+
+    def _enter_idle(self):
+        self._state = State.IDLE
+        self._fb.set_tone(False)
+        self._notify_display()
+
+    async def _enter_listening(self):
+        self._state = State.LISTENING
+        self._start_watchdog()
+        self._notify_display()
+
+    def _enter_pressing(self, ts: int):
+        self._state = State.PRESSING
+        self._press_ts = ts
+        self._fb.set_tone(True)
+
+    def _reset_session(self) -> None:
+        self._sequence.clear()
+        self._message.clear()
+
+    def _notify_display(self):
+        if not self._display:
+            return
+        self._display.render(
+            state=self._state,
+            sequence=list(self._sequence),
+            message="".join(self._message),
+        )
