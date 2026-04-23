@@ -4,6 +4,7 @@ import uasyncio
 class Queue:
     def __init__(self, maxsize=0):
         self._queue = []
+        self._maxsize = maxsize
         self._ev = uasyncio.Event()
 
     async def get(self):
@@ -13,5 +14,7 @@ class Queue:
         return self._queue.pop(0)
 
     def put_nowait(self, item):
+        if self._maxsize and len(self._queue) >= self._maxsize:
+            return
         self._queue.append(item)
         self._ev.set()
